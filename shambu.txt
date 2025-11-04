@@ -1,0 +1,70 @@
+#include <LiquidCrystal_I2C.h>
+#include "esp01_iot.h"
+LiquidCrystal_I2C lcd(0x27,20,4);
+#include "ACS712.h"
+#include "EmonLib.h"  
+EnergyMonitor emon1;
+float power1=0,power2;
+ACS712 sensor(ACS712_05B, A0);
+const int Buz=7;
+int flag = 1;
+long _Start;
+void send_sms(String, String);
+void setup() 
+{
+  Serial.begin(9600);
+  lcd.begin(16,2);
+  lcd.backlight(); 
+  pinMode(Buz,OUTPUT);
+  sensor.calibrate();
+  sensor.calibrate();
+  emon1.voltage(A1,400.26, 1.7);
+  lcd.setCursor(0,0);
+  lcd.print("Welcome To RRIT ");
+  lcd.setCursor(0, 1);
+  lcd.print("Dept of CSE       ");
+  delay(2000);
+  lcd.clear();
+  ini_iot();
+  _Start = millis(); 
+}
+
+void loop() 
+{
+  float current_01 = sensor.getCurrentAC();
+  Serial.println(String("current_01 = ") + current_01 + " A");
+  emon1.calcVI(20,2000); 
+  float supplyVoltage_01   = emon1.Vrms;  
+  Serial.print("supplyVoltage_01=");
+  Serial.println(supplyVoltage_01);
+  power1 = (supplyVoltage_01*current_01)*2;
+  Serial.print("power Home_01=");
+  Serial.println(power1);
+  lcd.setCursor(0,0);
+  lcd.print("Vt:");
+  lcd.print(supplyVoltage_01);
+  lcd.setCursor(9,0);
+  lcd.print("Ct:");
+  lcd.print(current_01);
+  lcd.setCursor(0, 1);
+  lcd.print("Power Home:");
+  lcd.setCursor(12, 1);
+  lcd.print(power1);
+  delay(500);
+  if(power1>200)
+  {
+    digitalWrite(Buz,HIGH);
+    delay(1000);
+  }
+  else
+  {
+    digitalWrite(Buz,LOW);
+  }
+  String getData2 = "&field1=" + String(current_01) + "&field2=" + String(supplyVoltage_01)+ "&field3=" + String(power1);
+  if (millis() - _Start > 20000)
+  {
+    senddata(getData2);
+    _Start = millis();
+  }
+  delay(1000);
+}
